@@ -1,0 +1,23 @@
+# Liste des vendeurs Cardmarket à scraper.
+# Chaque pseudo doit correspondre EXACTEMENT à celui visible dans l'URL MKM
+# /fr/Magic/Users/<pseudo>/Offers/Singles (sensible à la casse + tirets).
+
+wantlist_id: 23837361
+
+sellers:
+  - CORP-F
+  - Cartapapa-GP
+  - FMR-cards
+  - MagicoSphere
+  - CardsGGC
+  - Lud52
+  - OJT50
+  - jace21
+  - Boutique-TCG
+  - yardbirds
+  - Antredujeu
+  - MTGSPOT-FR
+  - Jenbiwe
+  - Philogelos
+  - Playin
+  - Parkage

@@ -20,7 +20,7 @@ from .config import load_config
 from .filters import filter_offers
 from .models import Offer, Solution, WantEntry
 from .optimizer.mip import brackets_from_config, solve
-from .parser import parse_seller_offers, parse_wantlist
+from .parser import parse_seller_offers, parse_seller_offers_dir, parse_wantlist
 from .parser.wantlist import parse_wantlist_meta
 from .reporter import write_reports
 
@@ -75,19 +75,32 @@ def optimize(
         f" — titre : {title!r}"
     )
 
-    # --- Offres : tous les HTMLs du dossier
+    # --- Offres : on accepte 2 layouts dans sellers_dir
+    #   layout A (legacy, 1 fichier par vendeur) : data/sellers/<pseudo>.html
+    #   layout B (paginatée, écrite par `fetch`) : data/sellers/<pseudo>/page1.html, page2.html…
     console.print(f"[bold]→ Vendeurs[/bold] : {sellers_dir}")
     raw_offers: list[Offer] = []
     sellers_seen: list[str] = []
-    for html_path in sorted(sellers_dir.glob("*.html")):
+    sources: list[tuple[str, Path]] = []
+    for sub in sorted(sellers_dir.iterdir()):
+        if sub.is_dir():
+            sources.append(("dir", sub))
+        elif sub.is_file() and sub.suffix == ".html":
+            sources.append(("file", sub))
+
+    for kind, path in sources:
         try:
-            seller, offers = parse_seller_offers(html_path)
+            if kind == "dir":
+                seller, offers = parse_seller_offers_dir(path)
+            else:
+                seller, offers = parse_seller_offers(path)
         except Exception as e:
-            console.print(f"  [yellow]⚠[/yellow] {html_path.name} : ignoré ({e})")
+            console.print(f"  [yellow]⚠[/yellow] {path.name} : ignoré ({e})")
             continue
         sellers_seen.append(seller)
         raw_offers.extend(offers)
-        console.print(f"  · {seller:<20s}  {len(offers):>4d} offres")
+        suffix = "" if kind == "file" else f" ({sum(1 for _ in path.glob('page*.html'))} pages)"
+        console.print(f"  · {seller:<20s}  {len(offers):>4d} offres{suffix}")
     console.print(
         f"  TOTAL : {len(sellers_seen)} vendeur(s), {len(raw_offers)} offres brutes"
     )
@@ -193,6 +206,110 @@ def parse(
             )
     else:
         raise typer.BadParameter(f"kind inconnu : {kind!r}")
+
+
+# ---- Commande : login (headed) ----------------------------------------------
+
+@app.command()
+def login() -> None:
+    """
+    Ouvre Chromium en headed sur la page de login Cardmarket. Connecte-toi
+    manuellement, puis appuie sur ENTRÉE dans le terminal. La session est
+    sauvegardée dans .auth/storage_state.json pour les runs suivants.
+    """
+    # Import différé pour ne pas exiger Playwright sur les commandes sans scraping
+    from .scraper.auth import interactive_login
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)-7s :: %(message)s")
+    interactive_login()
+
+
+# ---- Commande : fetch -------------------------------------------------------
+
+@app.command()
+def fetch(
+    sellers_file: Path = typer.Option(
+        Path("vendeurs.yaml"), "--sellers-file", "-f",
+        exists=True, dir_okay=False, readable=True,
+        help="YAML listant wantlist_id + sellers: [...].",
+    ),
+    output_dir: Path = typer.Option(
+        Path("data/sellers"), "--output-dir", "-o",
+        help="Racine où écrire <pseudo>/page<N>.html pour chaque vendeur.",
+    ),
+    refresh: bool = typer.Option(
+        False, "--refresh",
+        help="Force le re-fetch même si des HTMLs sont déjà en cache.",
+    ),
+    headless: bool = typer.Option(
+        True, "--headless/--headed",
+        help="Mode headless (par défaut) ou headed (pour debug visuel).",
+    ),
+    min_delay: int = typer.Option(800, "--min-delay-ms"),
+    max_delay: int = typer.Option(1500, "--max-delay-ms"),
+    only: Optional[str] = typer.Option(
+        None, "--only",
+        help="Ne traiter que ce vendeur (utile pour tester sur 1 cas).",
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """
+    Récupère les offres paginées de chaque vendeur de `vendeurs.yaml`
+    (filtrées par ta wantlist via le paramètre natif MKM `?idWantslist=...`).
+
+    Nécessite d'avoir lancé `mkm-optim login` au préalable.
+    """
+    import yaml
+    from .scraper.fetch import FetchOptions, fetch_all_sellers
+
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(levelname)-7s :: %(message)s",
+    )
+
+    cfg = yaml.safe_load(sellers_file.read_text(encoding="utf-8"))
+    wantlist_id = int(cfg["wantlist_id"])
+    sellers: list[str] = list(cfg["sellers"])
+    if only:
+        if only not in sellers:
+            console.print(f"[yellow]⚠ {only!r} pas dans la liste, on tente quand même[/yellow]")
+        sellers = [only]
+    console.print(
+        f"[bold]→ Fetch[/bold] wantlist={wantlist_id}  vendeurs={len(sellers)}  "
+        f"rate={min_delay}-{max_delay} ms  output={output_dir}"
+    )
+
+    opts = FetchOptions(
+        wantlist_id=wantlist_id,
+        output_dir=output_dir,
+        min_delay_ms=min_delay,
+        max_delay_ms=max_delay,
+        refresh=refresh,
+    )
+    stats = fetch_all_sellers(sellers, opts, headless=headless)
+
+    # Récap
+    t = Table(title="Récap fetch", show_lines=False)
+    t.add_column("Vendeur", style="cyan")
+    t.add_column("Pages", justify="right")
+    t.add_column("Offres ~", justify="right")
+    t.add_column("Durée", justify="right")
+    t.add_column("Statut")
+    for s in stats:
+        if s.skipped:
+            status = "[yellow]skip (cache)[/yellow]"
+        elif s.error:
+            status = f"[red]{s.error}[/red]"
+        else:
+            status = "[green]ok[/green]"
+        t.add_row(
+            s.seller,
+            str(s.pages_fetched),
+            str(s.total_results_announced or "?"),
+            f"{s.duration_seconds:.1f}s",
+            status,
+        )
+    console.print(t)
 
 
 if __name__ == "__main__":

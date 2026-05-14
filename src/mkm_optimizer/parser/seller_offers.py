@@ -15,8 +15,10 @@ l'URL canonique présente dans <link rel="canonical">).
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import urljoin
 
 from selectolax.parser import HTMLParser, Node
 
@@ -32,13 +34,124 @@ from ..selectors import (
     OFFER_PRICE,
     OFFER_AMOUNT,
     OFFER_ROW_ID_PREFIX,
+    PAGINATION_TOTAL_COUNT,
+    PAGINATION_LABEL,
+    PAGINATION_NEXT,
     parse_condition,
     parse_language,
 )
 
 
+_MKM_BASE = "https://www.cardmarket.com"
+_RE_PAGE_OF_TOTAL = re.compile(r"(\d+)\s+(?:sur|of|/)\s+(\d+)", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class PaginationState:
+    """État de pagination d'une page d'offres vendeur."""
+    current_page: int          # page courante (1-based)
+    total_pages: int           # nb total de pages (≥ 1)
+    total_results: int | None  # nb total d'offres annoncé par MKM
+    next_url: str | None       # URL ABSOLUE de la page suivante (None si dernière)
+
+    @property
+    def has_next(self) -> bool:
+        return self.next_url is not None and self.current_page < self.total_pages
+
+
 _RE_SELLER_FROM_URL = re.compile(r"/Users/([^/]+)/Offers/")
 _RE_PRICE = re.compile(r"([\d.\s ]+),(\d{1,2})\s*€?")
+
+
+def parse_pagination(html: str | Path) -> PaginationState:
+    """
+    Extrait l'état pagination d'une page d'offres vendeur.
+
+    Stratégie :
+      1. lit `<span class="total-count">N</span>` → nb total d'offres
+      2. lit `<span class="mx-1">Page X sur Y</span>` → (current, total_pages)
+      3. lit `<a class="pagination-control" data-direction="next">` :
+         - href présent → URL de la page suivante
+         - classe "disabled" présente → on est sur la dernière page
+
+    Si MKM change le DOM ou la langue, on a un fallback : total_pages=1 et
+    next_url=None (= une seule page).
+    """
+    if isinstance(html, Path):
+        html = html.read_text(encoding="utf-8")
+    tree = HTMLParser(html)
+
+    # Total results
+    total_results: int | None = None
+    tc_node = tree.css_first(PAGINATION_TOTAL_COUNT)
+    if tc_node is not None:
+        try:
+            total_results = int(re.sub(r"\D+", "", tc_node.text(strip=True) or "0"))
+        except ValueError:
+            total_results = None
+
+    # "Page X sur Y"
+    current_page = 1
+    total_pages = 1
+    label_node = tree.css_first(PAGINATION_LABEL)
+    if label_node is not None:
+        m = _RE_PAGE_OF_TOTAL.search(label_node.text(strip=True) or "")
+        if m:
+            current_page = int(m.group(1))
+            total_pages = int(m.group(2))
+
+    # Next URL
+    next_url: str | None = None
+    next_node = tree.css_first(PAGINATION_NEXT)
+    if next_node is not None:
+        classes = (next_node.attributes.get("class") or "").split()
+        if "disabled" not in classes:
+            href = (next_node.attributes.get("href") or "").strip()
+            if href:
+                next_url = urljoin(_MKM_BASE, href)
+
+    return PaginationState(
+        current_page=current_page,
+        total_pages=total_pages,
+        total_results=total_results,
+        next_url=next_url,
+    )
+
+
+def parse_seller_offers_dir(
+    seller_dir: Path,
+    seller: str | None = None,
+) -> tuple[str, list[Offer]]:
+    """
+    Parse toutes les pages d'un vendeur stockées dans `seller_dir/page*.html`.
+    Le pseudo est par défaut le nom du dossier.
+    Les doublons éventuels (article_id identique) sont dédupliqués.
+    """
+    if seller is None:
+        seller = seller_dir.name
+    # Ordre déterministe : page1.html, page2.html, ...
+    page_files = sorted(
+        seller_dir.glob("page*.html"),
+        key=lambda p: int(re.sub(r"\D+", "", p.stem) or "0"),
+    )
+    if not page_files:
+        # Fallback : 1 seul fichier <pseudo>.html à la racine
+        fallback = seller_dir.with_suffix(".html")
+        if fallback.exists():
+            return parse_seller_offers(fallback, seller=seller)
+        return seller, []
+
+    all_offers: list[Offer] = []
+    seen_ids: set[str] = set()
+    for path in page_files:
+        _, offers = parse_seller_offers(path, seller=seller)
+        for o in offers:
+            if o.article_id and o.article_id in seen_ids:
+                continue
+            if o.article_id:
+                seen_ids.add(o.article_id)
+            all_offers.append(o)
+    return seller, all_offers
 
 
 def parse_seller_offers(

@@ -38,6 +38,15 @@ OFFER_AMOUNT = ".amount-container span.item-count"
 OFFER_ROW_ID_PREFIX = "articleRow"                   # id=articleRow<articleId>
 
 
+# --- Pagination (page d'offres vendeur) --------------------------------------
+
+PAGINATION_BLOCK = ".pagination"                  # zone pagination
+PAGINATION_TOTAL_COUNT = ".pagination span.total-count"   # "130" (nb résultats)
+PAGINATION_LABEL = ".pagination span.mx-1"        # "Page 1 sur 7"
+PAGINATION_NEXT = ".pagination a[data-direction=next]"    # bouton "suivant"
+# Un bouton qui a la classe "disabled" est inactif (= dernière/première page).
+
+
 # --- Tables de correspondance ------------------------------------------------
 
 # Conditions : étiquettes MKM (FR + EN) → enum
