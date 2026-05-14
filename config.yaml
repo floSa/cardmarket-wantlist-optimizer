@@ -1,0 +1,64 @@
+# Configuration MKM Optimizer
+# Tout ce qui ici peut être surchargé par config.local.yaml (gitignored).
+
+wantlist:
+  # ID de la wantlist MKM par défaut (visible dans l'URL /Wants/<id>)
+  default_id: 23837361
+
+# Filtres sur les offres considérées
+filters:
+  # Pays vendeur (FR, DE, BE, ES, IT, etc. ou null = tous)
+  seller_country: FR
+
+  # Type vendeur :  any | private | commercial | powerseller
+  # (sur MKM "professional" recouvre commercial + powerseller)
+  seller_type: commercial
+
+  # Note minimale du vendeur sur 5
+  min_reputation: 4.0
+
+  # Pseudos vendeurs à toujours ignorer (problèmes passés, etc.)
+  excluded_sellers: []
+
+  # État minimum accepté (MT > NM > EX > GD > LP > PL > PO)
+  min_condition: EX
+
+  # Langues acceptées (codes ISO 2 lettres MKM)
+  languages: [fr, en]
+
+  # Foil : true (foil obligatoire) | false (non-foil obligatoire) | any
+  foil: any
+
+# Frais de port — barème UNIQUE pour tous les vendeurs (palier par nb cartes).
+# Si un palier ne s'applique pas, le solveur écarte simplement le vendeur.
+shipping:
+  brackets:
+    - { max_cards: 20, cost: 3.60 }
+    - { max_cards: 50, cost: 6.00 }
+    - { max_cards: 100, cost: 8.00 }
+
+# Optimisation
+optimization:
+  # Nombre max de vendeurs dans la solution (contrainte MIP)
+  max_vendors: 5
+
+  # Au-delà de ces seuils, bascule sur l'heuristique gourmande (non implémentée encore)
+  exact_threshold:
+    unique_cards: 150
+    total_units: 400
+
+  # Génère ces 3 scénarios à chaque run
+  scenarios:
+    - { name: "min_vendeurs", max_vendors: 3 }
+    - { name: "equilibre",    max_vendors: 5 }
+    - { name: "min_prix",     max_vendors: null }   # illimité
+
+# Cache des offres scrapées (durée de validité)
+cache:
+  ttl_hours: 24
+  sqlite_path: .cache/offers.sqlite
+
+# Rate limit (utilisé seulement par l'option B — Playwright)
+rate_limit:
+  min_delay_ms: 300
+  max_delay_ms: 800
