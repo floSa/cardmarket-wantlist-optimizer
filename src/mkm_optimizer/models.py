@@ -78,7 +78,8 @@ class Offer:
     seller: str                     # pseudo MKM
     card_name: str                  # nom de la carte tel qu'affiché
     product_url: str                # URL de la fiche produit
-    set_label: str                  # nom du set affiché ("Lorwyn éclipsé")
+    set_label: str                  # nom du set affiché ("Septième Edition")
+    set_code: Optional[str]         # slug stable extrait de l'URL ("Seventh-Edition")
     condition: Condition
     language: str                   # code ISO 2 lettres ("fr")
     foil: Foil

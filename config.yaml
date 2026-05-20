@@ -47,11 +47,20 @@ optimization:
     unique_cards: 150
     total_units: 400
 
-  # Génère ces 3 scénarios à chaque run
+  # Scénarios générés à chaque run.
+  # Pour chaque scénario, le solveur minimise : coût cartes + FDP + pénalité
+  # par carte non couverte (1e4 €) + `vendor_fixed_cost` par vendeur sélectionné.
+  #
+  # `vendor_fixed_cost` (€) : pénalité ajoutée à l'objectif pour chaque vendeur
+  # sélectionné, EN PLUS du FDP réel. À 0 = comportement classique. À 10 €
+  # par exemple, un vendeur n'est gardé que s'il fait économiser plus de
+  # 10 € en plus de couvrir son FDP — utile pour obtenir un panier frugal.
   scenarios:
-    - { name: "min_vendeurs", max_vendors: 3 }
-    - { name: "equilibre",    max_vendors: 5 }
-    - { name: "min_prix",     max_vendors: null }   # illimité
+    - { name: "max_3_vendeurs", max_vendors: 3 }
+    - { name: "max_5_vendeurs", max_vendors: 5 }
+    - { name: "max_6_vendeurs", max_vendors: 6 }
+    - { name: "max_7_vendeurs", max_vendors: 7 }
+    - { name: "min_prix_min_vendeurs", max_vendors: null, vendor_fixed_cost: 10 }
 
 # Cache des offres scrapées (durée de validité)
 cache:

@@ -60,6 +60,11 @@ class PaginationState:
 
 
 _RE_SELLER_FROM_URL = re.compile(r"/Users/([^/]+)/Offers/")
+# Extrait le slug du set depuis l'URL produit (slug toujours en anglais côté MKM).
+#   /fr/Magic/Products/Singles/Seventh-Edition/Psychic-Vortex?... → "Seventh-Edition"
+_RE_SET_FROM_PRODUCT_URL = re.compile(
+    r"/[a-z]{2}/[^/]+/Products/Singles/(?P<set>[^/?]+)/[^/?]+"
+)
 _RE_PRICE = re.compile(r"([\d.\s ]+),(\d{1,2})\s*€?")
 
 
@@ -235,6 +240,18 @@ def _parse_row(row: Node, seller: str) -> Offer | None:
         or set_a.attributes.get("aria-label")
         or ""
     ).strip()
+    # set_code stable depuis l'URL produit ; fallback sur slug du label
+    set_code: str | None = None
+    m_set = _RE_SET_FROM_PRODUCT_URL.search(product_url)
+    if m_set:
+        set_code = m_set.group("set")
+    # Si pas dans l'URL (cas inattendu pour une page d'offre vendeur, mais on sécurise),
+    # on dérive depuis le href du lien expansion-symbol :
+    if set_code is None:
+        set_href = (set_a.attributes.get("href") or "")
+        m2 = re.search(r"/Expansions/([^/?]+)", set_href)
+        if m2:
+            set_code = m2.group(1)
 
     # Condition
     cond_a = row.css_first(OFFER_CONDITION_A)
@@ -296,6 +313,7 @@ def _parse_row(row: Node, seller: str) -> Offer | None:
         card_name=card_name,
         product_url=product_url,
         set_label=set_label,
+        set_code=set_code,
         condition=condition,
         language=language,
         foil=foil,

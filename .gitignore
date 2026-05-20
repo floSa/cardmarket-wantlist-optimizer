@@ -2,16 +2,19 @@
 .auth/
 credentials.json
 config.local.yaml
+.env
+.env.local
 
 # Cache et données téléchargées
 .cache/
 *.sqlite
 *.db
 
-# Données utilisateur (HTML lourds, rapports nominatifs)
-data/wantlists/*.html
-data/sellers/*.html
-data/discovery/*.html
+# Données utilisateur (HTML lourds, rapports nominatifs).
+# Le ** est important : les vendeurs sont écrits dans data/sellers/<pseudo>/pageN.html
+data/wantlists/**/*.html
+data/sellers/**/*.html
+data/discovery/**/*.html
 reports/*.md
 reports/*.csv
 
@@ -31,6 +34,7 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
 
 # Editor
 .idea/

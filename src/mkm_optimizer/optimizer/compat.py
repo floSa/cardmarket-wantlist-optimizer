@@ -18,13 +18,24 @@ from ..models import Foil, Offer, WantEntry
 
 # ---- Normalisation de noms / slugs ------------------------------------------
 
+# MKM ajoute "(V.1)", "(V.2)"... aux noms quand plusieurs variantes d'art
+# coexistent pour la même carte. Mécaniquement c'est la même carte (mêmes
+# règles, même nom Magic), on les considère donc interchangeables.
+# Si plus tard un user veut une variante précise, on rajoutera une option
+# `strict_variant` côté want.
+_RE_VARIANT_SUFFIX = re.compile(r"\(\s*v\.?\s*\d+\s*\)", re.IGNORECASE)
+
+
 def normalize_name(s: str) -> str:
     """
-    Normalise un nom de carte pour matching : sans accents, lower, espaces
-    et ponctuation collapsés en un seul espace.
+    Normalise un nom de carte pour matching :
+      - retire le suffixe MKM "(V.N)" (variantes d'art)
+      - sans accents, lower
+      - espaces et ponctuation collapsés en un seul espace
     """
     if not s:
         return ""
+    s = _RE_VARIANT_SUFFIX.sub(" ", s)
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     s = s.lower()
@@ -59,6 +70,21 @@ SET_ALIASES: dict[str, str] = {
 
 # ---- Test de compatibilité ---------------------------------------------------
 
+def _sets_match(offer_set: str | None, want_set: str | None) -> bool:
+    """
+    Comparaison robuste de set_codes. Les deux viennent normalement de l'URL
+    /Products/Singles/<set>/<card>, donc le même slug EN. On compare en
+    case-insensitive et après normalisation des tirets.
+    """
+    if offer_set is None or want_set is None:
+        return False
+
+    def norm(s: str) -> str:
+        return s.strip().lower().replace("_", "-")
+
+    return norm(offer_set) == norm(want_set)
+
+
 def is_compatible(offer: Offer, want: WantEntry) -> bool:
     """
     Renvoie True si l'offre peut couvrir tout ou partie du want.
@@ -75,9 +101,11 @@ def is_compatible(offer: Offer, want: WantEntry) -> bool:
     if normalize_name(offer.card_name) != normalize_name(want.card_name):
         return False
 
-    # Set (seulement si want non-metacard)
+    # Set (seulement si want non-metacard).
+    # On compare les set_codes (slugs EN extraits des URLs des deux côtés) —
+    # bien plus fiable que de slugifier le libellé FR de l'offre.
     if not want.is_metacard:
-        if normalize_set(offer.set_label) != normalize_set(want.set_code):
+        if not _sets_match(offer.set_code, want.set_code):
             return False
 
     # Condition (rank: MT=0 < NM < EX < … < PO=6)

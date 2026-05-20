@@ -1,23 +1,47 @@
 # Liste des vendeurs Cardmarket à scraper.
 # Chaque pseudo doit correspondre EXACTEMENT à celui visible dans l'URL MKM
 # /fr/Magic/Users/<pseudo>/Offers/Singles (sensible à la casse + tirets).
+#
+# Reconstitué depuis data/sellers/ après la disparition accidentelle du
+# fichier — les 37 vendeurs ci-dessous ont tous des HTMLs déjà scrapés.
 
 wantlist_id: 23837361
 
 sellers:
-  - CORP-F
-  - Cartapapa-GP
-  - FMR-cards
-  - MagicoSphere
-  - CardsGGC
-  - Lud52
-  - OJT50
-  - jace21
-  - Boutique-TCG
-  - yardbirds
   - Antredujeu
-  - MTGSPOT-FR
+  - BattleMindTavern
+  - BazaarOfKoji
+  - Boutique-TCG
+  - bradpitkeeper
+  - CardsGGC
+  - Cartapapa-GP
+  - CORP-F
+  - Dooz-TCG
+  - Eclypse
+  - edwyn-le-muet
+  - Eldar-Caen
+  - FMR-cards
+  - fredc
+  - jace21
   - Jenbiwe
+  - JuraGeekStore
+  - La-Guilde-Du-Jeu
+  - Lud52
+  - Ludetopia
+  - MagicAtHome
+  - MagicoSphere
+  - mattsagace
+  - MerfolkTraders
+  - MTGSPOT-FR
+  - Mystic-Ambre
+  - OJT50
+  - OlympicMTG
+  - Parence-com
+  - Parkage
   - Philogelos
   - Playin
-  - Parkage
+  - romainmtbtcg
+  - sortileges85
+  - Table1MTG
+  - TCG-Detsuny
+  - yardbirds

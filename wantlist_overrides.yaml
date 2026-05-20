@@ -1,0 +1,23 @@
+# Surcharges locales pour la wantlist MKM.
+# ----------------------------------------------------------------------------
+# Ce fichier te permet de modifier les attributs d'un want SANS toucher à la
+# wantlist côté cardmarket.com ni avoir à re-télécharger l'HTML.
+#
+# Chaque entry est matchée par nom de carte (insensible aux accents / casse /
+# variantes V.N). Si la carte n'existe pas dans ta wantlist, un warning est
+# loggé mais on continue.
+#
+# Champs surchargeables :
+#   max_price       (Decimal, ex : 0.75)  — prix max désiré (PxD du rapport)
+#   quantity        (int)                 — nb d'exemplaires voulus
+#   min_condition   (MT|NM|EX|GD|LP|PL|PO)
+#   languages       (liste ISO ex : [fr, en])
+#   foil            (yes|no|any)
+#   is_signed       (true|false|any)
+#   is_altered      (true|false|any)
+#
+# Les overrides sont appliqués à chaque run `mkm-optim optimize`.
+
+overrides:
+  - card: "Éthérien doué"
+    max_price: 0.75

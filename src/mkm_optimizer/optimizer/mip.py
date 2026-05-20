@@ -65,8 +65,16 @@ def solve(
     scenario_name: str = "default",
     time_limit_seconds: int = 60,
     unmet_penalty: Decimal = DEFAULT_UNMET_PENALTY,
+    vendor_fixed_cost: Decimal = Decimal("0"),
     msg: bool = False,
 ) -> Solution:
+    """
+    `vendor_fixed_cost` : coût supplémentaire (€) ajouté à l'objectif pour
+    chaque vendeur sélectionné, EN PLUS du FDP réel. Sert à pénaliser les
+    vendeurs marginaux qui ne font économiser que quelques centimes. Mettre
+    à 0 (défaut) pour comportement standard ; mettre à 5-15 € pour favoriser
+    un panier frugal en nombre de vendeurs.
+    """
     """
     Résout le problème d'optimisation et retourne une Solution.
 
@@ -202,7 +210,9 @@ def solve(
         for k in range(len(brackets))
     )
     slack_cost = pulp.lpSum(u[wi] * float(unmet_penalty) for wi in range(len(wants)))
-    prob += cards_cost + shipping_cost + slack_cost
+    # Coût fixe par vendeur sélectionné : pénalise les vendeurs marginaux
+    vendor_cost = pulp.lpSum(x[v] * float(vendor_fixed_cost) for v in sellers)
+    prob += cards_cost + shipping_cost + slack_cost + vendor_cost
 
     # --- Résolution ----------------------------------------------------------
     solver = pulp.PULP_CBC_CMD(msg=msg, timeLimit=time_limit_seconds)

@@ -28,6 +28,7 @@ from typing import Callable, Iterable
 
 from playwright.sync_api import (
     BrowserContext,
+    Error as PWError,
     Page,
     Response,
     TimeoutError as PWTimeoutError,
@@ -41,6 +42,9 @@ from .auth import (
     get_authenticated_context,
     is_session_valid,
 )
+
+
+_RE_PAGE_NUM = re.compile(r"page(\d+)\.html$", re.IGNORECASE)
 
 
 log = logging.getLogger(__name__)
@@ -96,16 +100,50 @@ def fetch_seller(
     """
     stats = FetchStats(seller=seller)
     seller_dir = opts.output_dir / seller
+    base_url = (
+        f"{MKM_BASE}/fr/Magic/Users/{seller}/Offers/Singles"
+        f"?sortBy=name_asc&idWantslist={opts.wantlist_id}"
+    )
 
-    # Cache : si on a déjà des HTMLs et que refresh=False, on saute
-    if not opts.refresh and seller_dir.exists():
-        existing = sorted(seller_dir.glob("page*.html"))
-        if existing:
-            stats.skipped = True
-            stats.pages_fetched = len(existing)
-            log.info("[%s] %d pages déjà en cache, skip (utilise --refresh pour forcer)",
-                     seller, len(existing))
-            return stats
+    # --- Politique de cache --------------------------------------------------
+    # 1) --refresh : on efface l'existant et on repart à la page 1.
+    # 2) Pas de --refresh, pas de pages en cache : nouveau vendeur, page 1.
+    # 3) Pas de --refresh, des pages en cache :
+    #      - Si on a déjà page1.html, on lit la pagination dedans pour
+    #        connaître total_pages.
+    #      - Si on a toutes les pages → skip total (rien à faire).
+    #      - Sinon → on RESUME à la 1re page manquante.
+    start_idx = 1
+    if opts.refresh and seller_dir.exists():
+        for f in seller_dir.glob("page*.html"):
+            f.unlink()
+            log.debug("[%s] supprimé %s (refresh)", seller, f.name)
+    elif seller_dir.exists():
+        existing_pages = _existing_page_nums(seller_dir)
+        if existing_pages:
+            page1 = seller_dir / "page1.html"
+            total_pages_known = None
+            if page1.exists():
+                try:
+                    pstate = parse_pagination(page1)
+                    total_pages_known = pstate.total_pages
+                except Exception as e:
+                    log.warning("[%s] impossible de lire page1.html pour resume (%s) — re-fetch complet", seller, e)
+                    for f in seller_dir.glob("page*.html"):
+                        f.unlink()
+                    total_pages_known = None
+            if total_pages_known and max(existing_pages) >= total_pages_known:
+                stats.skipped = True
+                stats.pages_fetched = len(existing_pages)
+                stats.total_pages_announced = total_pages_known
+                log.info("[%s] %d/%d pages en cache, skip complet (--refresh pour forcer)",
+                         seller, len(existing_pages), total_pages_known)
+                return stats
+            # Resume : on reprend à la 1re page manquante après le bloc continu
+            # ex : pages 1,2,3,4 en cache → on reprend à 5
+            start_idx = max(existing_pages) + 1
+            log.info("[%s] resume : %d pages déjà en cache, reprise à page %d",
+                     seller, len(existing_pages), start_idx)
 
     seller_dir.mkdir(parents=True, exist_ok=True)
     sleep_fn = _sleep_fn(opts.min_delay_ms, opts.max_delay_ms)
@@ -115,12 +153,12 @@ def fetch_seller(
     page.set_default_navigation_timeout(45_000)
 
     try:
-        # URL de la 1re page
-        current_url = (
-            f"{MKM_BASE}/fr/Magic/Users/{seller}/Offers/Singles"
-            f"?sortBy=name_asc&idWantslist={opts.wantlist_id}"
-        )
-        site_idx = 1
+        # URL de départ : page courante (1 ou index de reprise)
+        if start_idx == 1:
+            current_url = base_url
+        else:
+            current_url = f"{base_url}&site={start_idx}"
+        site_idx = start_idx
 
         while site_idx <= opts.max_pages_per_seller:
             log.info("[%s] page %d → %s", seller, site_idx, current_url)
@@ -179,7 +217,8 @@ def fetch_seller(
 
 def _goto_with_backoff(page: Page, url: str, opts: FetchOptions) -> Response | None:
     """
-    Navigue vers `url` en gérant les HTTP 429 par backoff exponentiel.
+    Navigue vers `url` en gérant timeout, erreurs réseau (ERR_NETWORK_CHANGED,
+    ERR_INTERNET_DISCONNECTED…) et HTTP 429/503 par backoff exponentiel.
     Retourne la Response (ou None si tous les essais ont échoué).
     """
     delay = opts.on_429_initial_backoff
@@ -187,7 +226,15 @@ def _goto_with_backoff(page: Page, url: str, opts: FetchOptions) -> Response | N
         try:
             response = page.goto(url, wait_until="domcontentloaded")
         except PWTimeoutError as e:
-            log.warning("timeout navigation (tentative %d) : %s", attempt, e)
+            log.warning("timeout navigation (tentative %d/%d) : %s",
+                        attempt, opts.on_429_max_attempts, e)
+            time.sleep(delay)
+            delay *= 2
+            continue
+        except PWError as e:
+            # net::ERR_NETWORK_CHANGED, ERR_INTERNET_DISCONNECTED, ERR_NAME_NOT_RESOLVED, etc.
+            log.warning("erreur réseau (tentative %d/%d) : %s",
+                        attempt, opts.on_429_max_attempts, e)
             time.sleep(delay)
             delay *= 2
             continue
@@ -208,8 +255,18 @@ def _goto_with_backoff(page: Page, url: str, opts: FetchOptions) -> Response | N
         # Autres statuts (404, 500…) : on remonte tel quel
         log.error("HTTP %d sur %s", status, url)
         return response
-    log.error("Toutes les tentatives ont échoué (429/timeout) pour %s", url)
+    log.error("Toutes les tentatives ont échoué (timeout/réseau/429) pour %s", url)
     return None
+
+
+def _existing_page_nums(seller_dir: Path) -> list[int]:
+    """Retourne la liste des numéros de page déjà sauvegardés (triés)."""
+    nums: list[int] = []
+    for f in seller_dir.glob("page*.html"):
+        m = _RE_PAGE_NUM.search(f.name)
+        if m:
+            nums.append(int(m.group(1)))
+    return sorted(nums)
 
 
 # ---- Fetch de plusieurs vendeurs --------------------------------------------

@@ -22,7 +22,9 @@ from .models import Offer, Solution, WantEntry
 from .optimizer.mip import brackets_from_config, solve
 from .parser import parse_seller_offers, parse_seller_offers_dir, parse_wantlist
 from .parser.wantlist import parse_wantlist_meta
+from .overrides import apply_wantlist_overrides
 from .reporter import write_reports
+from .wantlist_export import write_wantlist_csv
 
 
 app = typer.Typer(
@@ -70,6 +72,9 @@ def optimize(
     wants = parse_wantlist(wantlist)
     meta = parse_wantlist_meta(wantlist)
     title = meta.get("title")
+    # Overrides locaux (wantlist_overrides.yaml à la racine du projet)
+    overrides_path = Path("wantlist_overrides.yaml")
+    wants = apply_wantlist_overrides(wants, overrides_path)
     console.print(
         f"  {len(wants)} wants / {sum(w.quantity for w in wants)} cartes"
         f" — titre : {title!r}"
@@ -122,22 +127,32 @@ def optimize(
     )
 
     # --- Optimisation par scénario
+    from decimal import Decimal
     solutions: list[Solution] = []
     for sc in cfg["optimization"]["scenarios"]:
+        vendor_fixed_cost = Decimal(str(sc.get("vendor_fixed_cost", 0)))
         sol = solve(
             wants=wants,
             offers=offers,
             brackets=brackets,
             max_vendors=sc.get("max_vendors"),
             scenario_name=sc["name"],
+            vendor_fixed_cost=vendor_fixed_cost,
         )
         solutions.append(sol)
         _print_scenario_summary(sol)
 
     # --- Écriture rapports
     md_path, csv_path = write_reports(solutions, wants, out_dir=output_dir, title=title)
-    console.print(f"\n[bold green]✓ Rapport MD[/bold green]  : {md_path}")
-    console.print(f"[bold green]✓ Rapport CSV[/bold green] : {csv_path}")
+    # Wantlist CSV à côté, pour audit/consultation
+    from datetime import datetime
+    stamp = datetime.now().strftime("%Y_%m_%d_%H-%M")
+    wantlist_csv_path = output_dir / f"{stamp}_WantList.csv"
+    write_wantlist_csv(wants, wantlist_csv_path)
+
+    console.print(f"\n[bold green]✓ Rapport MD[/bold green]   : {md_path}")
+    console.print(f"[bold green]✓ Rapport CSV[/bold green]  : {csv_path}")
+    console.print(f"[bold green]✓ Wantlist CSV[/bold green] : {wantlist_csv_path}")
 
 
 def _print_scenario_summary(sol: Solution) -> None:
@@ -211,17 +226,23 @@ def parse(
 # ---- Commande : login (headed) ----------------------------------------------
 
 @app.command()
-def login() -> None:
+def login(
+    headless: bool = typer.Option(
+        False, "--headless/--headed",
+        help="Headless seulement si tu sais qu'aucun CAPTCHA n'apparaît. Par défaut headed.",
+    ),
+) -> None:
     """
-    Ouvre Chromium en headed sur la page de login Cardmarket. Connecte-toi
-    manuellement, puis appuie sur ENTRÉE dans le terminal. La session est
-    sauvegardée dans .auth/storage_state.json pour les runs suivants.
+    Connexion à Cardmarket et sauvegarde de la session dans .auth/storage_state.json.
+
+    - Si .env contient CARDMARKET_USER et CARDMARKET_PASS → pré-remplit les champs
+      automatiquement, tu n'as plus qu'à cliquer 'Login' (+ CAPTCHA éventuel).
+    - Sinon → mode interactif : tu tapes tout dans la fenêtre Chromium.
     """
-    # Import différé pour ne pas exiger Playwright sur les commandes sans scraping
-    from .scraper.auth import interactive_login
+    from .scraper.auth import login as _login
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)-7s :: %(message)s")
-    interactive_login()
+    _login(headless=headless)
 
 
 # ---- Commande : fetch -------------------------------------------------------
@@ -310,6 +331,34 @@ def fetch(
             status,
         )
     console.print(t)
+
+
+# ---- Commande : wantlist-csv (export standalone) ----------------------------
+
+@app.command("wantlist-csv")
+def wantlist_csv(
+    wantlist: Path = typer.Option(
+        ..., "--wantlist", "-w", exists=True, dir_okay=False, readable=True,
+        help="HTML de la page wantlist Cardmarket.",
+    ),
+    output: Path = typer.Option(
+        Path("reports/wantlist.csv"), "--output", "-o",
+        help="Chemin du CSV à écrire.",
+    ),
+) -> None:
+    """
+    Parse une wantlist HTML et écrit un CSV lisible (utile pour audit
+    indépendamment d'une optimisation).
+    """
+    logging.basicConfig(level=logging.INFO, format="%(levelname)-7s :: %(message)s")
+    wants = parse_wantlist(wantlist)
+    meta = parse_wantlist_meta(wantlist)
+    write_wantlist_csv(wants, output)
+    console.print(
+        f"[bold green]✓[/bold green] Wantlist [bold]{meta.get('title')!r}[/bold] "
+        f"({len(wants)} wants / {sum(w.quantity for w in wants)} cartes) "
+        f"→ {output}"
+    )
 
 
 if __name__ == "__main__":
