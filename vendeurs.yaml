@@ -8,6 +8,7 @@
 wantlist_id: 23837361
 
 sellers:
+  - AbsolutMintCard
   - Antredujeu
   - BattleMindTavern
   - BazaarOfKoji
@@ -16,20 +17,29 @@ sellers:
   - CardsGGC
   - Cartapapa-GP
   - CORP-F
+  - cromwel
   - Dooz-TCG
   - Eclypse
   - edwyn-le-muet
   - Eldar-Caen
+  - FantasySphere
   - FMR-cards
   - fredc
+  - Garr0n
+  - hirochirak
+  - InvestCollect
   - jace21
   - Jenbiwe
   - JuraGeekStore
+  - Kavoldox
   - La-Guilde-Du-Jeu
+  - LeVizz
+  - LGRMasterC
   - Lud52
   - Ludetopia
   - MagicAtHome
   - MagicoSphere
+  - maglaf88
   - mattsagace
   - MerfolkTraders
   - MTGSPOT-FR
@@ -39,7 +49,9 @@ sellers:
   - Parence-com
   - Parkage
   - Philogelos
+  - PlaceOfGeek
   - Playin
+  - REDO-SHOP
   - romainmtbtcg
   - sortileges85
   - Table1MTG

@@ -361,5 +361,75 @@ def wantlist_csv(
     )
 
 
+# ---- Commande : check-cart --------------------------------------------------
+
+@app.command("check-cart")
+def check_cart(
+    cart: Path = typer.Option(
+        Path("data/panier/Panier.html"), "--cart", "-c",
+        exists=True, dir_okay=False, readable=True,
+        help="HTML SingleFile du panier Cardmarket.",
+    ),
+    report: Optional[Path] = typer.Option(
+        None, "--report", "-r",
+        help="CSV d'optimisation. Par défaut : dernier *_WantListOptimized.csv dans reports/.",
+    ),
+    scenario: str = typer.Option(
+        "max_7_vendeurs", "--scenario", "-s",
+        help="Nom du scénario à utiliser comme référence.",
+    ),
+    output_dir: Path = typer.Option(
+        Path("reports"), "--output-dir", "-o",
+        help="Dossier de sortie pour le rapport Markdown.",
+    ),
+) -> None:
+    """
+    Compare le panier Cardmarket (HTML SingleFile) avec la recommandation du solveur.
+    Génère un rapport Markdown listant les divergences.
+    """
+    from .cart_checker import check_cart as _check, write_check_report
+
+    # Auto-détection du dernier rapport si non fourni
+    if report is None:
+        candidates = sorted(Path("reports").glob("*_WantListOptimized.csv"))
+        if not candidates:
+            console.print("[red]Aucun rapport CSV trouvé dans reports/. Précise --report.[/red]")
+            raise typer.Exit(code=2)
+        report = candidates[-1]
+        console.print(f"[dim]→ Rapport utilisé : {report}[/dim]")
+
+    result = _check(cart_path=cart, csv_path=report, scenario=scenario)
+
+    # Affichage console
+    status = "[bold green]✅ Panier conforme[/bold green]" if result.all_ok \
+        else f"[bold yellow]⚠ {result.issue_count} divergence(s)[/bold yellow]"
+    console.print(f"\n{status}  —  scénario [bold]{scenario}[/bold]")
+
+    r_total = result.report_total_price + result.report_total_shipping
+    c_total = result.cart_total_price + result.cart_total_shipping
+    t = Table(show_lines=False, box=None)
+    t.add_column("", style="dim")
+    t.add_column("Rapport", justify="right")
+    t.add_column("Panier", justify="right")
+    t.add_column("Écart", justify="right")
+    t.add_row("Cartes",
+              str(result.report_total_qty), str(result.cart_total_qty),
+              f"{result.cart_total_qty - result.report_total_qty:+d}")
+    t.add_row("Total €",
+              f"{r_total:.2f} €", f"{c_total:.2f} €",
+              f"{c_total - r_total:+.2f} €")
+    console.print(t)
+
+    for sr in result.seller_results:
+        if not sr.ok:
+            console.print(f"  [yellow]⚠[/yellow] {sr.seller_name} : {len(sr.issues)} problème(s)")
+            for issue in sr.issues:
+                label = f"[dim]{issue.card_name}[/dim] — " if issue.card_name else ""
+                console.print(f"      {label}{issue.detail}")
+
+    out_path = write_check_report(result, output_dir)
+    console.print(f"\n[bold green]✓ Rapport[/bold green] : {out_path}")
+
+
 if __name__ == "__main__":
     app()
