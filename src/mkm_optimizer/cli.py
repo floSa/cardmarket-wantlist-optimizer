@@ -250,7 +250,7 @@ def login(
 @app.command()
 def fetch(
     sellers_file: Path = typer.Option(
-        Path("vendeurs.yaml"), "--sellers-file", "-f",
+        Path("data/vendeurs_liste/vendeurs.yaml"), "--sellers-file", "-f",
         exists=True, dir_okay=False, readable=True,
         help="YAML listant wantlist_id + sellers: [...].",
     ),
@@ -275,7 +275,7 @@ def fetch(
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """
-    Récupère les offres paginées de chaque vendeur de `vendeurs.yaml`
+    Récupère les offres paginées de chaque vendeur de `data/vendeurs_liste/vendeurs.yaml`
     (filtrées par ta wantlist via le paramètre natif MKM `?idWantslist=...`).
 
     Nécessite d'avoir lancé `mkm-optim login` au préalable.

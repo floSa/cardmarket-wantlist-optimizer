@@ -81,7 +81,7 @@ optimization:
     - { name: "min_prix",       max_vendors: null }   # illimité
 ```
 
-### `vendeurs.yaml` (liste des vendeurs à scraper)
+### `data/vendeurs_liste/vendeurs.yaml` (liste des vendeurs à scraper)
 
 ```yaml
 wantlist_id: 23837361
@@ -122,7 +122,7 @@ PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
 1. Sauvegarde ta wantlist MKM (page /Wants/<id>) avec l'extension SingleFile
    → data/wantlists/Wantlist.html
 2. Lance `mkm-optim login` (1 fois, ouvre Chromium pour la connexion)
-3. Lance `mkm-optim fetch --refresh` (scrape les vendeurs listés dans vendeurs.yaml)
+3. Lance `mkm-optim fetch --refresh` (scrape les vendeurs listés dans data/vendeurs_liste/vendeurs.yaml)
 4. Lance `mkm-optim optimize` (produit le rapport)
 5. Construis ton panier sur MKM, sauvegarde-le avec SingleFile
    → data/panier/Panier.html
@@ -145,7 +145,7 @@ valide ~30 jours).
 ### `fetch` — récupération des offres vendeurs
 
 ```bash
-# Scrape tous les vendeurs de vendeurs.yaml (skippe ceux déjà en cache)
+# Scrape tous les vendeurs de data/vendeurs_liste/vendeurs.yaml (skippe ceux déjà en cache)
 PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli fetch
 
 # Force le re-scrape (utile si la wantlist a changé)
@@ -293,7 +293,7 @@ automatiquement où il s'était arrêté.
 
 ### Un vendeur retourne `404` ou `navigation_failed`
 
-Typo dans `vendeurs.yaml` ou MKM throttle ce vendeur précisément. Vérifie
+Typo dans `data/vendeurs_liste/vendeurs.yaml` ou MKM throttle ce vendeur précisément. Vérifie
 le pseudo (sensible à la casse), retente plus tard avec
 `--only <PSEUDO>`.
 
@@ -301,7 +301,7 @@ le pseudo (sensible à la casse), retente plus tard avec
 
 C'est probablement :
 
-1. **Le vendeur n'a pas été scrapé** (pas dans `vendeurs.yaml`, ou échec
+1. **Le vendeur n'a pas été scrapé** (pas dans `data/vendeurs_liste/vendeurs.yaml`, ou échec
    du fetch). Vérifie : `grep -l "<nom_carte>" data/sellers/<v>/*.html`
 2. **La wantlist a changé après le fetch** : la nouvelle carte n'était
    pas dans le filtre `?idWantslist=` au moment du scrape → `--refresh`
@@ -320,7 +320,7 @@ C'est probablement :
   prendre une carte au-dessus du prix souhaité si c'est globalement optimal.
   La colonne PxD du rapport te le signale visuellement.
 - **Pas de découverte automatique de vendeurs** : tu maintiens la liste à
-  la main dans `vendeurs.yaml`.
+  la main dans `data/vendeurs_liste/vendeurs.yaml`.
 
 ## Conformité et risques
 

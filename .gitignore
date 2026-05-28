@@ -11,9 +11,11 @@ config.local.yaml
 *.db
 
 # Données utilisateur (HTML lourds, rapports nominatifs).
-# Le ** est important : les vendeurs sont écrits dans data/sellers/<pseudo>/pageN.html
+# Les .gitkeep dans chaque sous-dossier data/ sont trackés pour conserver la structure.
+# data/vendeurs_liste/vendeurs.yaml est intentionnellement tracké (pas ignoré).
 data/wantlists/**/*.html
 data/sellers/**/*.html
+data/panier/**/*.html
 data/discovery/**/*.html
 reports/*.md
 reports/*.csv
