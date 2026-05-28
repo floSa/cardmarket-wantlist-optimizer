@@ -93,14 +93,40 @@ sellers:
   # ... un pseudo par ligne, sensible à la casse
 ```
 
+## Quick Start
+
+```bash
+# 1. Connexion MKM (1 seule fois, valide ~30 jours)
+PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli login
+
+# 2. Scrape les vendeurs (--refresh si ta wantlist a changé)
+PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli fetch --refresh
+
+# 3. Génère le rapport d'optimisation
+PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli optimize \
+  --wantlist data/wantlists/Wantlist.html \
+  --sellers-dir data/sellers \
+  --config config.yaml
+
+# 4. Fais ton panier sur MKM, sauvegarde-le avec SingleFile
+#    → data/panier/Panier.html
+
+# 5. Vérifie ton panier vs le rapport
+PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
+  --scenario max_7_vendeurs
+```
+
 ## Workflow type
 
 ```text
 1. Sauvegarde ta wantlist MKM (page /Wants/<id>) avec l'extension SingleFile
-   → data/wantlists/wants_<id>.html
+   → data/wantlists/Wantlist.html
 2. Lance `mkm-optim login` (1 fois, ouvre Chromium pour la connexion)
-3. Lance `mkm-optim fetch` (scrape les vendeurs listés dans vendeurs.yaml)
+3. Lance `mkm-optim fetch --refresh` (scrape les vendeurs listés dans vendeurs.yaml)
 4. Lance `mkm-optim optimize` (produit le rapport)
+5. Construis ton panier sur MKM, sauvegarde-le avec SingleFile
+   → data/panier/Panier.html
+6. Lance `mkm-optim check-cart` (vérifie le panier vs le rapport)
 ```
 
 ## Commandes
@@ -165,6 +191,28 @@ PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli wantlist-csv \
 
 Utile pour vérifier ce que le parser comprend de ta wantlist sans lancer
 toute l'optimisation.
+
+### `check-cart` — vérification du panier vs rapport
+
+```bash
+# Utilise automatiquement le dernier rapport CSV dans reports/
+PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
+  --scenario max_7_vendeurs
+
+# Préciser explicitement le rapport et le panier
+PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
+  --cart data/panier/Panier.html \
+  --report reports/2026_05_27_22-06_WantListOptimized.csv \
+  --scenario max_7_vendeurs
+```
+
+Compare le panier Cardmarket (sauvegardé avec SingleFile depuis `/fr/Magic/ShoppingCart`)
+avec le scénario choisi dans le rapport d'optimisation. Produit dans `reports/` :
+
+- `YYYY_MM_DD_HH-MM_CartCheck_<scenario>.md` — rapport Markdown listant :
+  - tableau récap (cartes, total €, écart rapport/panier)
+  - vendeurs manquants ou en trop
+  - par vendeur : cartes manquantes, en trop, quantités incorrectes, prix et éditions différents
 
 ### `parse` — debug parsing d'un HTML (wantlist ou page vendeur)
 
