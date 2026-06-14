@@ -34,15 +34,13 @@ Aucune utilisation de l'API officielle MKM (réservée aux vendeurs pros).
 
 ```bash
 # 1. Clone / cd dans le projet
-cd /home/florian/mes_projets/MKM
+cd /home/florian/mes_projets/cardmarket-wantlist-optimizer
 
-# 2. Crée un venv + installe les deps
-python3 -m venv .venv
-.venv/bin/pip install --upgrade pip
-.venv/bin/pip install selectolax pulp pydantic pyyaml rich typer python-dotenv playwright
+# 2. Crée l'environnement + installe les deps (gérées par uv via pyproject.toml + uv.lock)
+uv sync
 
 # 3. Télécharge Chromium pour Playwright
-.venv/bin/playwright install --with-deps chromium
+uv run playwright install --with-deps chromium
 ```
 
 ## Configuration
@@ -97,13 +95,13 @@ sellers:
 
 ```bash
 # 1. Connexion MKM (1 seule fois, valide ~30 jours)
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli login
+uv run mkm-optim login
 
 # 2. Scrape les vendeurs (--refresh si ta wantlist a changé)
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli fetch --refresh
+uv run mkm-optim fetch --refresh
 
 # 3. Génère le rapport d'optimisation
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli optimize \
+uv run mkm-optim optimize \
   --wantlist data/wantlists/Wantlist.html \
   --sellers-dir data/sellers \
   --config config.yaml
@@ -112,7 +110,7 @@ PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli optimize \
 #    → data/panier/Panier.html
 
 # 5. Vérifie ton panier vs le rapport
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
+uv run mkm-optim check-cart \
   --scenario max_7_vendeurs
 ```
 
@@ -134,7 +132,7 @@ PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
 ### `login` — connexion à Cardmarket
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli login
+uv run mkm-optim login
 ```
 
 Ouvre Chromium (headed via WSLg sur Windows 11). Si `.env` est rempli, les
@@ -146,13 +144,13 @@ valide ~30 jours).
 
 ```bash
 # Scrape tous les vendeurs de data/vendeurs_liste/vendeurs.yaml (skippe ceux déjà en cache)
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli fetch
+uv run mkm-optim fetch
 
 # Force le re-scrape (utile si la wantlist a changé)
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli fetch --refresh
+uv run mkm-optim fetch --refresh
 
 # Tester sur un seul vendeur (ex : debug)
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli fetch --only CORP-F --refresh
+uv run mkm-optim fetch --only CORP-F --refresh
 ```
 
 Chaque page d'offres est sauvegardée dans `data/sellers/<pseudo>/page<N>.html`.
@@ -167,7 +165,7 @@ re-scraper les pages déjà en cache.
 ### `optimize` — génération du rapport optimisé
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli optimize \
+uv run mkm-optim optimize \
   --wantlist data/wantlists/wants_23837361.html \
   --sellers-dir data/sellers \
   --config config.yaml
@@ -184,7 +182,7 @@ Produit dans `reports/` :
 ### `wantlist-csv` — export wantlist seul
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli wantlist-csv \
+uv run mkm-optim wantlist-csv \
   --wantlist data/wantlists/wants_23837361.html \
   --output reports/ma_wantlist.csv
 ```
@@ -196,11 +194,11 @@ toute l'optimisation.
 
 ```bash
 # Utilise automatiquement le dernier rapport CSV dans reports/
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
+uv run mkm-optim check-cart \
   --scenario max_7_vendeurs
 
 # Préciser explicitement le rapport et le panier
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli check-cart \
+uv run mkm-optim check-cart \
   --cart data/panier/Panier.html \
   --report reports/2026_05_27_22-06_WantListOptimized.csv \
   --scenario max_7_vendeurs
@@ -217,7 +215,7 @@ avec le scénario choisi dans le rapport d'optimisation. Produit dans `reports/`
 ### `parse` — debug parsing d'un HTML (wantlist ou page vendeur)
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m mkm_optimizer.cli parse path/vers/page.html
+uv run mkm-optim parse path/vers/page.html
 ```
 
 Auto-détecte le type. Affiche les 30 premières entrées à la console.
