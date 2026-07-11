@@ -330,3 +330,22 @@ C'est probablement :
   pour un usage modéré. L'utilisateur assume ce risque.
 - Aucun contournement de CAPTCHA / protection anti-bot n'est tenté. Si
   Cardmarket bloque, le scraping s'arrête.
+
+---
+
+## Licences & composants
+
+| Composant | Rôle | Licence |
+|---|---|---|
+| PuLP | Solveur MIP (optimisation) | MIT |
+| CBC (via PuLP) | Solveur linéaire embarqué | EPL-2.0 |
+| selectolax | Parsing HTML des pages MKM | MIT |
+| Pydantic | Modèles de données typés | MIT |
+| Typer | Interface en ligne de commande | MIT |
+| Rich | Affichage CLI / logs | MIT |
+| PyYAML | Configuration | MIT |
+| python-dotenv | Chargement des credentials `.env` | BSD-3-Clause |
+| **Ce projet** | Code applicatif | MIT — Copyright (c) 2026 floSa `<à confirmer : aucun fichier LICENSE présent>` |
+
+> Les données proviennent de Cardmarket (MKM) ; leur usage reste soumis aux conditions de la
+> plateforme (usage personnel).
