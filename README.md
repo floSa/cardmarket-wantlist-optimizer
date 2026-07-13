@@ -1,9 +1,41 @@
 # MKM Optimizer
 
-Outil en ligne de commande qui, à partir d'une wantlist Cardmarket (URL/HTML)
-et d'une liste de vendeurs, produit un panier d'achat optimisé minimisant le
-**coût total** (prix des cartes + frais de port) tout en limitant le nombre
-de vendeurs. Strictement à usage personnel.
+**Outil CLI qui transforme une wantlist Cardmarket et une liste de vendeurs en paniers d'achat optimisés minimisant le coût total (cartes + frais de port), à usage strictement personnel.**
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![uv](https://img.shields.io/badge/uv-package_manager-DE5FE9?logo=uv&logoColor=white)
+![PuLP](https://img.shields.io/badge/PuLP-2.8+-2C7BB6)
+![Typer](https://img.shields.io/badge/Typer-0.12+-009688?logo=typer&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-1.42+-2EAD33?logo=playwright&logoColor=white)
+
+## Architecture
+
+Quatre étapes indépendantes, une par sous-commande, communiquant par fichiers
+sur disque (HTML bruts, rapports) :
+
+- `login` — session Playwright persistée dans `.auth/storage_state.json`
+- `fetch` — scraping paginé des offres vendeurs → `data/sellers/<v>/page<N>.html`
+- `optimize` — parsing + compatibilité par want + solveur MIP exact (PuLP + CBC), un panier par scénario → `reports/`
+- `check-cart` — comparaison du panier construit sur MKM avec le rapport
+
+```mermaid
+flowchart LR
+  wl[wantlist HTML] --> opt[optimize]
+  fetch[fetch offres] --> html[(data/sellers)]
+  html --> opt
+  opt --> rep[(reports MD + CSV)]
+  rep --> cc[check-cart]
+```
+
+> Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (le COMMENT) et
+> [docs/CADRAGE.md](docs/CADRAGE.md) (le POURQUOI).
+
+## Documentation
+
+| Document | Contenu |
+|---|---|
+| [docs/CADRAGE.md](docs/CADRAGE.md) | Pitch, périmètre V1/hors-V1, hypothèses, décisions, roadmap |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Composants, flux, modèle MIP, configuration, sécurité, limites |
 
 ## Pourquoi cet outil
 
@@ -266,6 +298,15 @@ src/mkm_optimizer/
 └── optimizer/
     ├── compat.py         # is_compatible(offer, want)
     └── mip.py            # Solveur PuLP + CBC
+```
+
+## Tests
+
+Deux scripts *smoke* (pas encore une suite pytest) :
+
+```bash
+uv run python tests/smoke_mip.py       # solveur : cas synthétique + données réelles
+uv run python tests/smoke_parsers.py   # parsers wantlist + offres sur HTMLs réels
 ```
 
 ## Dépannage
