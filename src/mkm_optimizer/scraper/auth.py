@@ -153,12 +153,20 @@ def _auto_login(
             return
 
         log.info("Champs remplis, soumission automatique du formulaire...")
+        # Le clic sur le bouton submit peut échouer si la bannière cookies
+        # (Cybot) recouvre encore le bouton → timeout d'actionabilité. On
+        # bascule alors sur un appui ENTRÉE dans le champ mot de passe, qui
+        # soumet le formulaire sans dépendre de la position du bouton.
         try:
-            page.click(LOGIN_SUBMIT_BUTTON)
+            page.click(LOGIN_SUBMIT_BUTTON, timeout=5_000)
         except PWTimeoutError:
-            log.error("Bouton submit introuvable — bascule sur l'interactif.")
-            _fallback_interactive(page, ctx, browser, storage_path)
-            return
+            log.warning("Clic submit intercepté/introuvable — soumission via ENTRÉE.")
+            try:
+                page.press(LOGIN_PASSWORD_INPUT, "Enter")
+            except PWTimeoutError:
+                log.error("Soumission impossible — bascule sur l'interactif.")
+                _fallback_interactive(page, ctx, browser, storage_path)
+                return
 
         # Attente de la redirection hors de /Login
         try:

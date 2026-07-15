@@ -93,6 +93,7 @@ ne transitent par aucun fichier sauvegardé après login.
 ```yaml
 filters:
   excluded_sellers: []      # pseudos avec qui on refuse de traiter
+  max_offer_price: 20       # plafond de prix unitaire (€) ; null = pas de plafond
   # min_condition / languages / foil / seller_country : conservés pour
   # référence mais NON appliqués globalement — chaque want porte ses propres
   # filtres parsés depuis ta wantlist MKM.
@@ -286,14 +287,15 @@ src/mkm_optimizer/
 ├── config.py             # Chargement config.yaml + config.local.yaml
 ├── models.py             # Dataclasses : WantEntry, Offer, Solution, etc.
 ├── selectors.py          # TOUS les sélecteurs CSS / tables FR↔EN centralisés
-├── filters.py            # Pré-filtres globaux (excluded_sellers uniquement)
+├── filters.py            # Pré-filtres globaux (excluded_sellers, max_offer_price)
 ├── reporter.py           # Génération MD + CSV des rapports
 ├── wantlist_export.py    # Export CSV de la wantlist (audit)
 ├── parser/
 │   ├── wantlist.py       # Parse page /Wants/<id> → list[WantEntry]
 │   └── seller_offers.py  # Parse pages /Users/<v>/Offers + pagination
 ├── scraper/              # Playwright : login + fetch paginé
-│   ├── auth.py
+│   ├── auth.py           # Soumission du login, fallback ENTRÉE si le clic
+│   │                     # sur le bouton submit est intercepté (bannière cookies)
 │   └── fetch.py
 └── optimizer/
     ├── compat.py         # is_compatible(offer, want)
@@ -317,6 +319,14 @@ Soit la session MKM est OK et c'est juste un faux warning (vérifie avec un
 fetch test), soit Cloudflare a affiché un CAPTCHA que tu n'as pas résolu.
 Relance `mkm-optim login` et termine bien la connexion dans la fenêtre
 Chromium avant d'appuyer Entrée dans le terminal.
+
+### Le login se bloque sur le clic du bouton submit
+
+Si la bannière cookies (Cybot) recouvre encore le bouton au moment du login
+automatique, le clic échoue par timeout. Dans ce cas, `login` bascule
+automatiquement sur un appui ENTRÉE dans le champ mot de passe, qui soumet le
+formulaire sans dépendre de la position du bouton. Si ça échoue aussi, le
+mode interactif prend le relais.
 
 ### `RuntimeError: Session expirée ou invalide`
 

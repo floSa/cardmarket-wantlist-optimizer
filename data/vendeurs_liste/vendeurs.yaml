@@ -5,11 +5,12 @@
 # Reconstitué depuis data/sellers/ après la disparition accidentelle du
 # fichier — les 37 vendeurs ci-dessous ont tous des HTMLs déjà scrapés.
 
-wantlist_id: 23837361
+wantlist_id: 24265843
 
 sellers:
   - AbsolutMintCard
   - Antredujeu
+  - ArcheAJeux
   - BattleMindTavern
   - BazaarOfKoji
   - Boutique-TCG
@@ -33,6 +34,7 @@ sellers:
   - Jenbiwe
   - JuraGeekStore
   - Kavoldox
+  - LaBelleCarte
   - La-Guilde-Du-Jeu
   - ledouble6
   - LeVizz
@@ -43,6 +45,7 @@ sellers:
   - MagicBougnat
   - MagicNice
   - MagicoSphere
+  - Magicboxx
   - maglaf88
   - mattsagace
   - MerfolkTraders
@@ -55,10 +58,16 @@ sellers:
   - Philogelos
   - PlaceOfGeek
   - Playin
+  - play-mtg-fr
   - REDO-SHOP
   - romainmtbtcg
+  - Ruleofthegame
   - sortileges85
   - Table1MTG
   - TCG-Detsuny
+  - Varzog
+  - yannzup
   - yardbirds
-  - 
+  - Laurent38
+  - SUPERCARTES
+  - WoodMousePatronus
