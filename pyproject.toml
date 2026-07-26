@@ -15,7 +15,11 @@ dependencies = [
 
 [project.optional-dependencies]
 scrape = [
-    "playwright>=1.42",     # Option B (étape suivante) : récupération HTML auto
+    # patchright = remplaçant drop-in de Playwright qui patche la fuite CDP
+    # `Runtime.enable` que Cloudflare détecte depuis mi-2026. Indispensable
+    # pour que le fetch passe (voir README § fetch). Tire Playwright en dépendance.
+    "patchright>=1.52",
+    "playwright>=1.42",
 ]
 dev = [
     "pytest>=8.0",

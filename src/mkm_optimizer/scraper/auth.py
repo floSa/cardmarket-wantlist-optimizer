@@ -19,7 +19,7 @@ import os
 import time
 from pathlib import Path
 
-from playwright.sync_api import (
+from patchright.sync_api import (
     BrowserContext,
     Error as PWError,
     Playwright,
@@ -310,10 +310,15 @@ def get_authenticated_context(
             f"Pas de session enregistrée ({storage_path}). "
             "Lance d'abord : mkm-optim login"
         )
-    browser = playwright.chromium.launch(headless=headless)
+    # Cloudflare (mi-2026) détecte Playwright via la fuite CDP `Runtime.enable`.
+    # On utilise donc patchright (import en tête de module) qui patche ce leak,
+    # ET on lance en mode HEADED — patchright reste détectable en headless.
+    # En WSL sans WSLg fonctionnel, lancer sous un écran virtuel Xvfb :
+    #   DISPLAY=:99 uv run mkm-optim fetch ...
+    # Pas de user_agent ni d'args custom : patchright gère la furtivité seul.
+    browser = playwright.chromium.launch(headless=False)
     ctx = browser.new_context(
         storage_state=str(storage_path),
-        user_agent=USER_AGENT,
         locale="fr-FR",
         viewport={"width": 1366, "height": 900},
     )
